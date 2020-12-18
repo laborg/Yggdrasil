@@ -1,11 +1,11 @@
 using BinaryBuilder
 
 name = "LibOSXUnwind"
-version = v"0.0.6"
+version = v"0.0.7"
 
 # Collection of sources required to build libosxunwind
 sources = [
-    ArchiveSource("https://github.com/JuliaLang/libosxunwind/archive/v$(version).tar.gz",
+    ArchiveSource("https://github.com/JuliaLang/libosxunwind/archive/v0.0.6.tar.gz",
                   "c3943fdd063c2c8c249778326cbfecdc62c804a0509c4ae4799604e1817f9058"),
 ]
 
