@@ -2,13 +2,12 @@
 # `julia build_tarballs.jl --help` to see a usage message.
 using BinaryBuilder, Pkg
 
-#
-# FLINT_jll versions are decoupled from the upstream versions.
-# Whenever we package a new official FLINT release, we initially map its
+# The version of this JLL is decoupled from the upstream version.
+# Whenever we package a new upstream release, we initially map its
 # version X.Y.Z to X00.Y00.Z00 (i.e., multiply each component by 100).
 # So for example version 2.6.3 would become 200.600.300.
 #
-# Moreover, all our packages using FLINT_jll use `~` in their compat ranges.
+# Moreover, all our packages using this JLL use `~` in their compat ranges.
 #
 # Together, this allows us to increment the patch level of the JLL for minor tweaks.
 # If a rebuild of the JLL is needed which keeps the upstream version identical
@@ -17,22 +16,23 @@ using BinaryBuilder, Pkg
 # To package prerelease versions, we can also adjust the minor version; e.g. we may
 # map a prerelease of 2.7.0 to 200.690.000.
 #
-# There is currently no plan to change the major version (except when FLINT itself
+# There is currently no plan to change the major version, except when upstream itself
 # changes its major version. It simply seemed sensible to apply the same transformation
 # to all components.
 #
-#
+
 # WARNING WARNING WARNING: any change to the the version of this JLL should be carefully
 # coordinated with corresponding changes to Singular_jll.jl, LoadFlint.jl, Nemo.jl,
 # and possibly other packages.
 name = "FLINT"
-version = v"200.690.000"  # WARNING: don't change this
+version = v"200.790.000"  # WARNING: don't change this
+upstream_version = v"2.8.0-dev"
 
 # Collection of sources required to build FLINT
 sources = [
-    GitSource("https://github.com/wbhart/flint2.git", "60401a410e335f3c243ec069f5c72a2d8365a626"),
-#    ArchiveSource("http://www.flintlib.org/flint-$(version).tar.gz",
-#                  "ce1a750a01fa53715cad934856d4b2ed76f1d1520bac0527ace7d5b53e342ee3")
+#    GitSource("https://github.com/wbhart/flint2.git", "12c069ea98cd8d2c1b556bbd85568c4891f126fa"),
+    ArchiveSource("https://github.com/wbhart/flint2/archive/refs/tags/v$(upstream_version).tar.gz", #"https://www.flintlib.org/flint-$(upstream_version).tar.gz",
+                  "d4750a20fbb6243f50c500c60006c7e39a9522667330a9d0f748abe248f7df0d")
 ]
 
 # Bash recipe for building across all platforms
@@ -78,4 +78,3 @@ build_tarballs(ARGS, name, version, sources, script, platforms, products, depend
         cglobal(:jl_free))
   end
 """)
-

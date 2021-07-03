@@ -3,42 +3,49 @@
 using BinaryBuilder, Pkg
 import Pkg.Types: VersionSpec
 
-# Singular_jll versions are decoupled from the upstream versions. Whenever we
-# package a new official Singular release, we initially map its version
-# X.Y.ZpN to X0Y.Z00.N00. So for example version 4.1.3p5 becomes 401.300.500.
+# The version of this JLL is decoupled from the upstream version.
+# Whenever we package a new upstream release, we initially map its
+# version X.Y.ZpN to X0Y.Z00.N00. So for example version 4.1.3p5 becomes 401.300.500.
 #
 # This reflects the fact that 4.2.0 will only be made if there is a change to
 # Singular language itself, i.e., this is a pretty major change. The third digit
 # is changed for regular interim releases, and corresponds roughly to a semver
 # minor release; and the `p5` truly is a patch level.
 #
-# Moreover, all our packages using Singular_jll use `~` in their compat
-# ranges. Together, this allows us to increment the patch level of the JLL for
-# minor tweaks. If a rebuild of the JLL is needed which keeps the upstream
-# version identical but breaks ABI compatibility for any reason, we can
-# increment the minor version e.g. go from 401.300.500 to 401.301.500.
+# Moreover, all our packages using this JLL use `~` in their compat ranges.
+#
+# Together, this allows us to increment the patch level of the JLL for minor
+# tweaks. If a rebuild of the JLL is needed which keeps the upstream version
+# identical but breaks ABI compatibility for any reason, we can increment the
+# minor version e.g. go from 401.300.500 to 401.301.500.
 #
 # To package prerelease versions, we can also adjust the minor version; e.g. we may
 # map a prerelease of 4.1.4 to 401.390.000.
 #
-# There is currently no plan to change the major version, except when Singular itself
+# There is currently no plan to change the major version, except when upstream itself
 # changes its major version. It simply seemed sensible to apply the same transformation
 # to all components.
 #
-# WARNING WARNING WARNING: any change to the the version of this JLL should be carefully
-# coordinated with corresponding changes to FLINT_jll.jl, LoadFlint.jl, Nemo.jl,
-# libsingular_julia_jll, Singular.jl, and possibly other packages.
 name = "Singular"
-version = v"401.390.000"  # a snapshot of 4.1.4-DEV
+version = v"402.000.104" # actually 4.2.0p1 plus some more changes
+upstream_version = v"4.2.0"
 
 # Collection of sources required to build normaliz
 sources = [
-    GitSource("https://github.com/Singular/Singular.git", "eaa7752eb5d84ef7620492a274dcf88b30f152de"),
+    GitSource("https://github.com/Singular/Singular.git", "7b8e28f635afde923bf9ebc01c3821ba6d67ece8"),
+    #ArchiveSource("https://www.mathematik.uni-kl.de/ftp/pub/Math/Singular/SOURCES/$(upstream_version.major)-$(upstream_version.minor)-$(upstream_version.patch)/singular-$(upstream_version).tar.gz",
+    #              "5b0f6c036b4a6f58bf620204b004ec6ca3a5007acc8352fec55eade2fc9d63f6"),
+    #DirectorySource("./bundled")
 ]
 
 # Bash recipe for building across all platforms
 script = raw"""
-cd Singular
+cd [Ss]ingular*
+
+#for f in ${WORKSPACE}/srcdir/patches/*.patch; do
+#    atomic_patch -p1 ${f}
+#done
+
 ./autogen.sh
 export CPPFLAGS="-I${prefix}/include"
 ./configure --prefix=$prefix --host=$target --build=${MACHTYPE} \
@@ -51,7 +58,8 @@ export CPPFLAGS="-I${prefix}/include"
     --with-readline=no \
     --with-gmp=$prefix \
     --with-flint=$prefix \
-    --without-python
+    --without-python \
+    --with-builtinmodules=gfanlib,syzextra,customstd,interval,subsets,loctriv,gitfan,freealgebra
 
 make -j${nproc}
 make install
@@ -81,7 +89,7 @@ products = [
 # Dependencies that must be installed before this package can be built
 dependencies = [
     Dependency("cddlib_jll"),
-    Dependency(PackageSpec(name="FLINT_jll", version=VersionSpec("200.690"))), # snapshot of 2.7.0-DEV
+    Dependency(PackageSpec(name="FLINT_jll"), compat = "~200.700"),
     Dependency("GMP_jll", v"6.1.2"),
     Dependency("MPFR_jll", v"4.0.2"),
 ]

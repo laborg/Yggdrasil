@@ -30,8 +30,10 @@ commonoptions=" \
 -skip qtactiveqt -skip qtandroidextras -skip qtcanvas3d -skip qtconnectivity -skip qtdatavis3d -skip qtdoc -skip qtgamepad \
 -skip qtnetworkauth -skip qtpurchasing -skip qtremoteobjects -skip qtscript -skip qtscxml -skip qtsensors -skip qtserialbus \
 -skip qtserialport -skip qtspeech -skip qtvirtualkeyboard -skip qtlocation -skip qtwayland -skip qtwebchannel -skip qtwebengine \
--skip qtwebglplugin -skip qtwebsockets -skip qtwebview  -skip qttools -nomake examples -release \
+-skip qtwebglplugin -skip qtwebsockets -skip qtwebview  -skip qttools  -openssl-linked  -nomake examples -release \
 "
+
+export OPENSSL_LIBS="-L${libdir} -lssl -lcrypto"
 
 apk add g++ linux-headers
 
@@ -146,6 +148,15 @@ esac
 
 make -j${nproc}
 make install
+
+# Deleting static libraries is problematic: https://github.com/JuliaPackaging/Yggdrasil/pull/2713
+#rm ${prefix}/lib/*.a
+
+if [[ "${target}" == *-mingw* ]]; then
+    # Make executables for Windows... executable
+    chmod 755 ${bindir}/*${exeext}
+fi
+
 install_license $WORKSPACE/srcdir/qt-everywhere-src-*/LICENSE.LGPLv3
 """
 
@@ -271,11 +282,12 @@ dependencies = [
     Dependency("Xorg_xcb_util_keysyms_jll"),
     Dependency("Xorg_xcb_util_renderutil_jll"),
     Dependency("xkbcommon_jll"),
-    BuildDependency("Libglvnd_jll"),
+    Dependency("Libglvnd_jll"),
     Dependency("Fontconfig_jll"),
-    Dependency("Glib_jll"),
+    Dependency("Glib_jll", v"2.59.0"; compat="2.59.0"),
     Dependency("Zlib_jll"),
     Dependency("CompilerSupportLibraries_jll"),
+    Dependency("OpenSSL_jll"),
 ]
 
 include("../../fancy_toys.jl")

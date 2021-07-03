@@ -24,9 +24,10 @@ atomic_patch -p1 ${WORKSPACE}/srcdir/patches/libunwind-prefer-extbl.patch
 atomic_patch -p1 ${WORKSPACE}/srcdir/patches/libunwind-static-arm.patch
 atomic_patch -p0 ${WORKSPACE}/srcdir/patches/libunwind-configure-ppc64le.patch
 atomic_patch -p0 ${WORKSPACE}/srcdir/patches/libunwind-configure-static-lzma.patch
+atomic_patch -p1 ${WORKSPACE}/srcdir/patches/libunwind-cfa-rsp.patch
 
 CFLAGS="${CFLAGS} -DPI -fPIC -I${prefix}/include"
-./configure --prefix=$prefix --host=$target CFLAGS="${CFLAGS}" --libdir=${libdir} --enable-minidebuginfo --disable-tests
+./configure --prefix=${prefix} --build=${MACHTYPE} --host=${target} CFLAGS="${CFLAGS}" --libdir=${libdir} --enable-minidebuginfo --disable-tests
 make -j${nproc}
 make install
 

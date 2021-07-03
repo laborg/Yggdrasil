@@ -6,11 +6,11 @@ using Pkg
 julia_version = v"1.5.3"
 
 name = "FastJet_Julia_Wrapper"
-version = v"0.8.5"
+version = v"0.8.6"
 
 # Collection of sources required to build FastJet_Julia_Wrapper
 sources = [
-	GitSource("https://github.com/jstrube/FastJet_Julia_Wrapper.git", "3fab5f91e88f2b348ec700c27733e0fcc661bd13"),
+	GitSource("https://github.com/jstrube/FastJet_Julia_Wrapper.git", "dc12b746c4ac0ec03e506113d21b53ff02f8e1c0"),
 ]
 
 # Bash recipe for building across all platforms
@@ -25,9 +25,9 @@ install_license $WORKSPACE/srcdir/FastJet_Julia_Wrapper/LICENSE.md
 
 # These are the platforms we will build for by default, unless further
 # platforms are passed in on the command line
-platforms = expand_cxxstring_abis(supported_platforms())
-# skip i686 musl builds (not supported by libjulia_jll)
-filter!(p -> !(Sys.islinux(p) && libc(p) == "musl" && arch(p) == "i686"), platforms)
+include("../../L/libjulia/common.jl")
+platforms = expand_cxxstring_abis(libjulia_platforms(julia_version))
+
 # the plugins aren't found on win. Disable for now, but this is not a fundamental limitation.
 filter!(!Sys.iswindows, platforms)
 

@@ -11,7 +11,7 @@ CUDA_ARTIFACT_DIR=$(dirname $(dirname $(realpath $prefix/cuda/bin/ptxas${exeext}
 cd ${CUDA_ARTIFACT_DIR}
 
 # Clear out our prefix
-rm -rf ${prefix}
+rm -rf ${prefix}/*
 
 # license
 install_license EULA.txt
@@ -118,6 +118,9 @@ elif [[ ${target} == x86_64-w64-mingw32 ]]; then
     # Additional binaries
     mv bin/nvdisasm.exe ${bindir}
     mv bin/cuda-memcheck.exe ${bindir}
+
+    # Fix permissions
+    chmod +x ${bindir}/*.{exe,dll}
 fi
 """
 

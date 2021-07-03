@@ -3,13 +3,13 @@
 using BinaryBuilder
 
 name = "GR"
-version = v"0.53.0"
+version = v"0.57.3"
 
 # Collection of sources required to complete build
 sources = [
-    GitSource("https://github.com/sciapp/gr.git", "b490cbfacc6f4dc08c2a2de52c6f6594e8c7c5f9"),
+    GitSource("https://github.com/sciapp/gr.git", "b95f9774605456d6bb94f469adc15ff01de11f8e"),
     FileSource("https://github.com/sciapp/gr/releases/download/v$version/gr-$version.js",
-               "60b856b8bb834d30612653da42eebef56e4e329d3a73d52c303684ee42b027f1", "gr.js")
+               "7a135443118725ca944ea3fdf01bd805f6ac65529b98c0463884bfce8a66f274", "gr.js")
 ]
 
 # Bash recipe for building across all platforms
@@ -49,12 +49,7 @@ cp ../../gr.js ${libdir}/
 install_license $WORKSPACE/srcdir/gr/LICENSE.md
 
 if [[ $target == *"apple-darwin"* ]]; then
-    cd $prefix/lib
-    ln -s libGR.so libGR.dylib
-    ln -s libGR3.so libGR3.dylib
-    ln -s libGRM.so libGRM.dylib
-    ln -s libGKS.so libGKS.dylib
-    cd ../bin
+    cd ${bindir}
     ln -s ../Applications/gksqt.app/Contents/MacOS/gksqt ./
     ln -s ../Applications/GKSTerm.app/Contents/MacOS/GKSTerm ./
 fi
@@ -66,8 +61,12 @@ platforms = [
     Platform("armv7l",  "linux"; libc="glibc"),
     Platform("aarch64", "linux"; libc="glibc"),
     Platform("x86_64",  "linux"; libc="glibc"),
+    Platform("i686",  "linux"; libc="glibc"),
+    Platform("powerpc64le",  "linux"; libc="glibc"),
     Platform("x86_64",  "windows"),
+    Platform("i686",  "windows"),    
     Platform("x86_64",  "macos"),
+#    Platform("x86_64",  "freebsd"),
 ]
 platforms = expand_cxxstring_abis(platforms)
 
@@ -82,7 +81,9 @@ products = [
 
 # Dependencies that must be installed before this package can be built
 dependencies = [
-    Dependency("Bzip2_jll"),
+    # Future versions of bzip2 should allow a more relaxed compat because the
+    # soname of the macOS library shouldn't change at every patch release.
+    Dependency("Bzip2_jll", v"1.0.6"; compat="=1.0.6"),
     Dependency("Cairo_jll"),
     Dependency("FFMPEG_jll"),
     Dependency("Fontconfig_jll"),
@@ -91,7 +92,8 @@ dependencies = [
     Dependency("libpng_jll"),
     Dependency("Libtiff_jll"),
     Dependency("Pixman_jll"),
-    Dependency("Qt_jll"),
+#    Dependency("Qhull_jll"),
+    Dependency("Qt5Base_jll"),    
     BuildDependency("Xorg_libX11_jll"),
     BuildDependency("Xorg_xproto_jll"),
     Dependency("Zlib_jll"),

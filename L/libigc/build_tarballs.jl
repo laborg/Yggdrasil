@@ -3,7 +3,7 @@
 using BinaryBuilder
 
 name = "libigc"
-version = v"1.0.5699"
+version = v"1.0.7423"
 
 # IGC depends on LLVM, a custom Clang, and a Khronos tool. Instead of building these pieces
 # separately, taking care to match versions and apply Intel-specific patches where needed
@@ -13,11 +13,10 @@ version = v"1.0.5699"
 # Collection of sources required to build IGC
 # NOTE: these hashes are taken from the release notes in GitHub
 sources = [
-    GitSource("https://github.com/intel/intel-graphics-compiler.git", "c59cb6f02b12fd4cc2549707985c6015b4928c1a"),
-    GitSource("https://github.com/intel/llvm-patches.git", "9cbc7cfb9bc374be22e1bb2418c5e9385000d755"),
-    GitSource("https://github.com/intel/opencl-clang.git", "4e83bbfb67047d0a836739982264a007a4d418ef"),
-    GitSource("https://github.com/KhronosGroup/SPIRV-LLVM-Translator.git", "424e375edc4b915218ab5d1f08670a8d1e92c9d3"),
-    GitSource("https://github.com/intel/vc-intrinsics.git", "a08fe5bc81963c569c3920557c1fbe0caa40840c"),
+    GitSource("https://github.com/intel/intel-graphics-compiler.git", "3104b45be5ed35a7f6a8d52ff4a7f339f582e055"),
+    GitSource("https://github.com/intel/opencl-clang.git", "c8cd72e32b6abc18ce6da71c357ea45ba78b52f0"),
+    GitSource("https://github.com/KhronosGroup/SPIRV-LLVM-Translator.git", "9d8d0329fe41d7fd1b859d1988b8c89d7cce0a7e"),
+    GitSource("https://github.com/intel/vc-intrinsics.git", "069ced1e8a408d8b602b3b210017603792df6260"),
     GitSource("https://github.com/llvm/llvm-project.git", "d32170dbd5b0d54436537b6b75beaf44324e0c28"),
     # patches
     DirectorySource("./bundled"),
@@ -33,7 +32,6 @@ git config --global user.email "your@email.com"
 # move everything in places where it will get detected by the IGC build system
 mv opencl-clang llvm-project/llvm/projects/opencl-clang
 mv SPIRV-LLVM-Translator llvm-project/llvm/projects/llvm-spirv
-mv llvm-patches llvm_patches
 
 # Work around compilation failures
 # https://gcc.gnu.org/bugzilla/show_bug.cgi?id=86678

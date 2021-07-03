@@ -6,7 +6,7 @@ version = v"2"
 # Collection of sources required to build libuv
 sources = [
     GitSource("https://github.com/JuliaLang/libuv.git",
-              "67d1dc2ca2289f25a23b016a0bc427d45301ec05"),
+              "fb3e3364c33ae48c827f6b103e05c3f0e78b79a9"),
 ]
 
 # Bash recipe for building across all platforms
@@ -20,7 +20,7 @@ touch -c configure
 
 # `--with-pic` isn't enough; we really really need -fPIC and -DPIC everywhere...
 # everywhere, especially on FreeBSD
-./configure --prefix=$prefix --host=$target --with-pic CFLAGS="${CFLAGS} -DPIC -fPIC" CXXFLAGS="${CXXFLAGS} -DPIC -fPIC"
+./configure --prefix=${prefix} --build=${MACHTYPE} --host=${target} --with-pic CFLAGS="${CFLAGS} -DPIC -fPIC" CXXFLAGS="${CXXFLAGS} -DPIC -fPIC"
 make -j${nproc} V=1
 make install
 """
@@ -41,3 +41,4 @@ dependencies = [
 # versioning APIs worked out in BB yet.
 version = v"2.0.1"
 build_tarballs(ARGS, name, version, sources, script, platforms, products, dependencies; julia_compat="1.6")
+

@@ -2,14 +2,34 @@
 # `julia build_tarballs.jl --help` to see a usage message.
 using BinaryBuilder, BinaryBuilderBase, Pkg
 
+# The version of this JLL is decoupled from the upstream version.
+# Whenever we package a new upstream release, we initially map its
+# version X.Y.Z to X00.Y00.Z00 (i.e., multiply each component by 100).
+# So for example version 2.6.3 would become 200.600.300.
+#
+# Moreover, all our packages using this JLL use `~` in their compat ranges.
+#
+# Together, this allows us to increment the patch level of the JLL for minor tweaks.
+# If a rebuild of the JLL is needed which keeps the upstream version identical
+# but breaks ABI compatibility for any reason, we can increment the minor version
+# e.g. go from 200.600.300 to 200.601.300.
+# To package prerelease versions, we can also adjust the minor version; e.g. we may
+# map a prerelease of 2.7.0 to 200.690.000.
+#
+# There is currently no plan to change the major version, except when upstream itself
+# changes its major version. It simply seemed sensible to apply the same transformation
+# to all components.
+
 name = "GAP"
-version = v"4.11.0"
+version = v"400.1190.3"
+upstream_version = v"4.12.0-dev"
 
 # Collection of sources required to complete build
 sources = [
-    GitSource("https://github.com/gap-system/gap.git", "069a6497424113dc5e5ffe133be9da5bfe6acb24"),
-#    ArchiveSource("https://github.com/gap-system/gap/releases/download/v$(version)/gap-$(version)-core.tar.bz2",
-#                  "6637f66409bc91af21eaa38368153270b71b13b55b75cc1550ed867c629901d1"),
+    # snapshot of GAP master branch leading up to GAP 4.12:
+    GitSource("https://github.com/gap-system/gap.git", "ab43b5637fd21ac00f0ae131439e5888be69514c"),
+#    ArchiveSource("https://github.com/gap-system/gap/releases/download/v$(upstream_version)/gap-$(upstream_version)-core.tar.gz",
+#                  "2b6e2ed90fcae4deb347284136427105361123ac96d30d699db7e97d094685ce"),
     DirectorySource("./bundled"),
 ]
 
@@ -17,11 +37,15 @@ sources = [
 script = raw"""
 cd ${WORKSPACE}/srcdir/gap*
 
-atomic_patch -p1 ${WORKSPACE}/srcdir/patches/configure.patch
-atomic_patch -p1 ${WORKSPACE}/srcdir/patches/Makefile.patch
+for f in ${WORKSPACE}/srcdir/patches/*.patch; do
+    atomic_patch -p1 ${f}
+done
 
 # run autogen.sh if compiling from it source and/or if configure was patched
 ./autogen.sh
+
+# provide some generated code
+cp ${WORKSPACE}/srcdir/generated/c_*.c src/
 
 # compile GAP
 ./configure --prefix=${prefix} --build=${MACHTYPE} --host=${target} \
@@ -36,7 +60,10 @@ make -j${nproc}
 make install-bin install-headers install-libgap
 
 # also install config.h
-cp gen/config.h ${prefix}/include/gap
+cp build/config.h ${prefix}/include/gap
+
+# the license
+install_license LICENSE
 
 # get rid of *.la files, they just cause trouble
 rm ${prefix}/lib/*.la
@@ -71,15 +98,21 @@ products = [
 
 # Dependencies that must be installed before this package can be built
 dependencies = [
-    Dependency("GMP_jll", v"6.1.2"),
-    Dependency("Readline_jll"),
+    Dependency("GMP_jll", compat="6.1.2"),
+    Dependency("Readline_jll", compat="8.0.4"),
     Dependency("Zlib_jll"),
 
     # GAP tries hard to produce a binary that works in all Julia versions,
     # regardless of which version of Julia it was compiled again; so the
     # version restriction below could be dropped or changed if necessary
-    BuildDependency(PackageSpec(name="libjulia_jll", version=v"1.4.2")),
+    BuildDependency(PackageSpec(name="libjulia_jll", version=v"1.5.3")),
 ]
 
 # Build the tarballs, and possibly a `build.jl` as well.
-build_tarballs(ARGS, name, version, sources, script, platforms, products, dependencies; preferred_gcc_version=v"7")
+build_tarballs(ARGS, name, version, sources, script, platforms, products, dependencies;
+               preferred_gcc_version=v"7",
+               init_block = """
+
+    sym = dlsym(libgap_handle, :GAP_InitJuliaMemoryInterface)
+    ccall(sym, Nothing, (Any, Ptr{Nothing}), @__MODULE__, C_NULL)
+""")

@@ -11,6 +11,8 @@ const llvm_tags = Dict(
     v"9.0.1" => "c1a0a213378a458fbea1a5c77b315c7dce08fd05",
     v"10.0.1" => "ef32c611aa214dea855364efd7ba451ec5ec3f74",
     v"11.0.0" => "176249bd6732a8044d457092ed932768724a6f06",
+    v"11.0.1" => "43ff75f2c3feef64f9d73328230d34dac8832a91",
+    v"12.0.0" => "d28af7c654d8db0b68c175db5ce212d74fb5e9bc",
 )
 
 const buildscript = raw"""
@@ -76,7 +78,7 @@ CMAKE_FLAGS=()
 CMAKE_FLAGS+=(-DLLVM_TARGETS_TO_BUILD:STRING=host)
 CMAKE_FLAGS+=(-DLLVM_HOST_TRIPLE=${MACHTYPE})
 CMAKE_FLAGS+=(-DCMAKE_BUILD_TYPE=Release)
-CMAKE_FLAGS+=(-DLLVM_ENABLE_PROJECTS='clang;compiler-rt')
+CMAKE_FLAGS+=(-DLLVM_ENABLE_PROJECTS='clang;compiler-rt;mlir')
 CMAKE_FLAGS+=(-DCMAKE_CROSSCOMPILING=False)
 CMAKE_FLAGS+=(-DCMAKE_TOOLCHAIN_FILE=${CMAKE_HOST_TOOLCHAIN})
 
@@ -133,6 +135,11 @@ CMAKE_FLAGS+=(-DLLVM_LINK_LLVM_DYLIB:BOOL=ON)
 # set a SONAME suffix for FreeBSD https://github.com/JuliaLang/julia/issues/32462
 CMAKE_FLAGS+=(-DLLVM_VERSION_SUFFIX:STRING="jl")
 
+if [[ "${target}" == *linux* || "${target}" == *mingw* ]]; then
+    # https://bugs.llvm.org/show_bug.cgi?id=48221
+    CMAKE_CXX_FLAGS+="-fno-gnu-unique"
+fi
+
 # Install things into $prefix, and make sure it knows we're cross-compiling
 CMAKE_FLAGS+=(-DCMAKE_INSTALL_PREFIX=${prefix})
 CMAKE_FLAGS+=(-DCMAKE_CROSSCOMPILING=True)
@@ -150,7 +157,8 @@ if [[ ${target} == *linux* ]]; then
     CMAKE_FLAGS+=(-DLLVM_USE_PERF=1)
 #     CMAKE_FLAGS+=(-DLLVM_USE_OPROFILE=1)
 fi
-if [[ ${target} == *linux* ]] || [[ ${target} == *mingw32* ]]; then
+# if [[ ${target} == *linux* ]] || [[ ${target} == *mingw32* ]]; then
+if [[ ${target} == *linux* ]]; then # TODO only LLVM12
     CMAKE_FLAGS+=(-DLLVM_USE_INTEL_JITEVENTS=1)
 fi
 
@@ -260,7 +268,7 @@ const libllvmscript = raw"""
 LLVM_ARTIFACT_DIR=$(dirname $(dirname $(realpath ${prefix}/tools/opt${exeext})))
 
 # Clear out our `${prefix}`
-rm -rf ${prefix}
+rm -rf ${prefix}/*
 
 # Copy over `llvm-config`, `libLLVM` and `include`, specifically.
 mkdir -p ${prefix}/include ${prefix}/tools ${libdir} ${prefix}/lib
@@ -276,7 +284,7 @@ const clangscript = raw"""
 LLVM_ARTIFACT_DIR=$(dirname $(dirname $(realpath ${prefix}/tools/opt${exeext})))
 
 # Clear out our `${prefix}`
-rm -rf ${prefix}
+rm -rf ${prefix}/*
 
 # Copy over `clang`, `libclang` and `include`, specifically.
 mkdir -p ${prefix}/include ${prefix}/tools ${libdir} ${prefix}/lib
@@ -285,6 +293,22 @@ mv -v ${LLVM_ARTIFACT_DIR}/tools/clang* ${prefix}/tools/
 mv -v ${LLVM_ARTIFACT_DIR}/$(basename ${libdir})/libclang*.${dlext}* ${libdir}/
 mv -v ${LLVM_ARTIFACT_DIR}/lib/libclang*.a ${prefix}/lib
 mv -v ${LLVM_ARTIFACT_DIR}/lib/clang ${prefix}/lib/clang
+install_license ${LLVM_ARTIFACT_DIR}/share/licenses/LLVM_full*/*
+"""
+
+const mlirscript = raw"""
+# First, find (true) LLVM library directory in ~/.artifacts somewhere
+LLVM_ARTIFACT_DIR=$(dirname $(dirname $(realpath ${prefix}/tools/opt${exeext})))
+
+# Clear out our `${prefix}`
+rm -rf ${prefix}/*
+
+# Copy over `libMLIR` and `include`, specifically.
+mkdir -p ${prefix}/include ${prefix}/tools ${libdir} ${prefix}/lib
+mv -v ${LLVM_ARTIFACT_DIR}/include/mlir* ${prefix}/include/
+mv -v ${LLVM_ARTIFACT_DIR}/tools/mlir* ${prefix}/tools/
+mv -v ${LLVM_ARTIFACT_DIR}/$(basename ${libdir})/*MLIR*.${dlext}* ${libdir}/
+mv -v ${LLVM_ARTIFACT_DIR}/lib/mlir ${prefix}/lib/mlir
 install_license ${LLVM_ARTIFACT_DIR}/share/licenses/LLVM_full*/*
 """
 
@@ -297,18 +321,19 @@ rm -rf ${prefix}/*
 
 # Copy over everything, but eliminate things already put inside `Clang_jll` or `libLLVM_jll`:
 mv -v ${LLVM_ARTIFACT_DIR}/* ${prefix}/
-rm -vrf ${prefix}/include/{clang*,llvm*}
-rm -vrf ${prefix}/tools/{clang*,llvm-config}
+rm -vrf ${prefix}/include/{clang*,llvm*,mlir*}
+rm -vrf ${prefix}/tools/{clang*,llvm-config,mlir*}
 rm -vrf ${libdir}/libclang*.${dlext}*
 rm -vrf ${libdir}/*LLVM*.${dlext}*
+rm -vrf ${libdir}/*MLIR*.${dlext}*
 rm -vrf ${prefix}/lib/*LLVM*.a
 rm -vrf ${prefix}/lib/libclang*.a
 rm -vrf ${prefix}/lib/clang
+rm -vrf ${prefix}/lib/mlir
 """
 
-function configure_build(ARGS, version; experimental_platforms=false)
+function configure_build(ARGS, version; experimental_platforms=false, assert=false)
     # Parse out some args
-    assert = false
     if "--assert" in ARGS
         assert = true
         deleteat!(ARGS, findfirst(ARGS .== "--assert"))
@@ -344,7 +369,7 @@ function configure_build(ARGS, version; experimental_platforms=false)
     return name, version, sources, config * buildscript, platforms, products, dependencies
 end
 
-function configure_extraction(ARGS, LLVM_full_version, name, libLLVM_version=nothing; experimental_platforms=false)
+function configure_extraction(ARGS, LLVM_full_version, name, libLLVM_version=nothing; experimental_platforms=false, assert=false)
     if isempty(LLVM_full_version.build)
         error("You must lock an extracted LLVM build to a particular LLVM_full build number!")
     end
@@ -352,6 +377,7 @@ function configure_extraction(ARGS, LLVM_full_version, name, libLLVM_version=not
         error("You must lock an extracted LLVM build to a particular libLLVM build number!")
     end
     version = VersionNumber(LLVM_full_version.major, LLVM_full_version.minor, LLVM_full_version.patch)
+    compat_version = "$(version.major).$(version.minor).$(version.patch)"
     if name == "libLLVM"
         script = libllvmscript
         products = [
@@ -364,6 +390,11 @@ function configure_extraction(ARGS, LLVM_full_version, name, libLLVM_version=not
             LibraryProduct("libclang", :libclang, dont_dlopen=true),
             ExecutableProduct("clang", :clang, "tools"),
         ]
+    elseif name == "MLIR"
+        script = mlirscript
+        products = [
+            LibraryProduct("libMLIR", :libMLIR, dont_dlopen=true),
+        ]        
     elseif name == "LLVM"
         script = llvmscript
         products = [
@@ -371,21 +402,30 @@ function configure_extraction(ARGS, LLVM_full_version, name, libLLVM_version=not
             ExecutableProduct("opt", :opt, "tools"),
             ExecutableProduct("llc", :llc, "tools"),
         ]
+        if version >= v"8"
+            push!(products, ExecutableProduct("llvm-mca", :llvm_mca, "tools"))
+        end
     end
     platforms = expand_cxxstring_abis(supported_platforms(;experimental=experimental_platforms))
 
     dependencies = BinaryBuilder.AbstractDependency[]
+    
+    # Parse out some args
     if "--assert" in ARGS
+        assert = true
+        deleteat!(ARGS, findfirst(ARGS .== "--assert"))
+    end
+
+    if assert
         push!(dependencies, BuildDependency(get_addable_spec("LLVM_full_assert_jll", LLVM_full_version)))
-        if name in ("Clang", "LLVM")
-            push!(dependencies, Dependency(get_addable_spec("libLLVM_assert_jll", libLLVM_version)))
+        if name in ("Clang", "LLVM", "MLIR")
+            push!(dependencies, Dependency("libLLVM_assert_jll", libLLVM_version, compat=compat_version))
         end
         name = "$(name)_assert"
-        deleteat!(ARGS, findfirst(ARGS .== "--assert"))
     else
         push!(dependencies, BuildDependency(get_addable_spec("LLVM_full_jll", LLVM_full_version)))
-        if name in ("Clang", "LLVM")
-            push!(dependencies, Dependency(get_addable_spec("libLLVM_jll", libLLVM_version)))
+        if name in ("Clang", "LLVM", "MLIR")
+            push!(dependencies, Dependency("libLLVM_jll", libLLVM_version, compat=compat_version))
         end
     end
 

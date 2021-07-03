@@ -1,7 +1,7 @@
-using BinaryBuilder
+using BinaryBuilder, Pkg
 
 name = "LibGit2"
-version = v"1.1.0"
+version = v"1.2.3"
 
 # Collection of sources required to build libgit2
 sources = [
@@ -15,6 +15,8 @@ script = raw"""
 cd $WORKSPACE/srcdir/libgit2*/
 
 atomic_patch -p1 $WORKSPACE/srcdir/patches/libgit2-agent-nonfatal.patch
+atomic_patch -p1 $WORKSPACE/srcdir/patches/libgit2-hostkey.patch
+atomic_patch -p1 $WORKSPACE/srcdir/patches/libgit2-continue-zlib.patch
 
 BUILD_FLAGS=(
     -DCMAKE_BUILD_TYPE=Release
@@ -57,9 +59,10 @@ products = [
 
 # Dependencies that must be installed before this package can be built
 dependencies = [
-    Dependency("MbedTLS_jll"),
+    Dependency(Pkg.Types.PackageSpec(name="MbedTLS_jll", version=v"2.24.0")),
     Dependency("LibSSH2_jll"),
 ]
 
 # Build the tarballs, and possibly a `build.jl` as well.
 build_tarballs(ARGS, name, version, sources, script, platforms, products, dependencies; julia_compat="1.6")
+

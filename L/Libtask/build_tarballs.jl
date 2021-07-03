@@ -2,10 +2,10 @@
 # `julia build_tarballs.jl --help` to see a usage message.
 using BinaryBuilder, Pkg
 
-julia_version = v"1.5.1"
+julia_version = v"1.3.1"
 
 name = "Libtask"
-version = v"0.4.2"
+version = v"0.5.1"
 
 # Collection of sources required to build Libtask
 sources = [
@@ -43,15 +43,8 @@ install_license LICENSE.md
 
 # These are the platforms we will build for by default, unless further
 # platforms are passed in on the command line
-platforms = supported_platforms()
-
-# skip i686 musl builds (not supported by libjulia_jll)
-filter!(p -> !(Sys.islinux(p) && libc(p) == "musl" && arch(p) == "i686"), platforms)
-
-# skip PowerPC builds in Julia 1.3 (not supported by libjulia_jll)
-if julia_version < v"1.4"
-    filter!(p -> !(Sys.islinux(p) && arch(p) == "powerpc64le"), platforms)
-end
+include("../../L/libjulia/common.jl")
+platforms = libjulia_platforms(julia_version)
 
 # The products that we will ensure are always built
 products = [
@@ -65,5 +58,5 @@ dependencies = [
 
 # Build the tarballs, and possibly a `build.jl` as well.
 build_tarballs(ARGS, name, version, sources, script, platforms, products, dependencies;
-               julia_compat = "~$(julia_version.major).$(julia_version.minor)",
+               julia_compat = "^1.3",
                lock_microarchitecture = false)

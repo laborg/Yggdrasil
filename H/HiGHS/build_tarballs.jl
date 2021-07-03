@@ -3,11 +3,11 @@
 using BinaryBuilder, Pkg
 
 name = "HiGHS"
-version = v"0.1.4"
 
-# Collection of sources required to complete build
+version = v"0.3.1"
+
 sources = [
-    GitSource("https://github.com/ERGO-Code/HiGHS.git", "0b4cb7f882a6c5d208fbb2edb4d8c416291ed4f5"),
+    GitSource("https://github.com/ERGO-Code/HiGHS.git", "40fa96a10554d76b1413bf33cc79a2153aa1db13"),
     DirectorySource("./bundled"),
 ]
 
@@ -23,23 +23,36 @@ if [[ "${target}" == *86*-linux-musl* ]]; then
 fi
 mkdir -p HiGHS/build
 cd HiGHS/build
-apk add --upgrade cmake --repository=http://dl-cdn.alpinelinux.org/alpine/edge/main
-cmake -DCMAKE_INSTALL_PREFIX=$prefix -DCMAKE_TOOLCHAIN_FILE=${CMAKE_TARGET_TOOLCHAIN} -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=OFF ..
-make -j${nproc} highs
-make install highs
+apk add --upgrade cmake
+cmake -DCMAKE_INSTALL_PREFIX=$prefix \
+    -DCMAKE_TOOLCHAIN_FILE=${CMAKE_TARGET_TOOLCHAIN} \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DBUILD_SHARED_LIBS=ON \
+    -DFAST_BUILD=ON \
+    -DJULIA=ON \
+    -DIPX=ON ..
+if [[ "${target}" == *-linux-* ]]; then
+        make -j $nproc
+else
+    if [[ "${target}" == *-mingw* ]]; then
+        cmake --build . --config Release
+    else
+        cmake --build . --config Release --parallel
+    fi
+fi
+make install
 """
 
 # These are the platforms we will build for by default, unless further
 # platforms are passed in on the command line
-platforms = expand_gfortran_versions(
-    expand_cxxstring_abis(supported_platforms())
-)
-filter!(!Sys.iswindows, platforms)
+platforms = expand_cxxstring_abis(supported_platforms())
+
+# Useful for testing to add the MIP and QP solvers.
+# filter!(Sys.iswindows, platforms)
 
 # The products that we will ensure are always built
 products = [
     LibraryProduct("libhighs", :libhighs),
-    LibraryProduct("libipx", :libipx)
 ]
 
 # Dependencies that must be installed before this package can be built

@@ -2,18 +2,18 @@
 # `julia build_tarballs.jl --help` to see a usage message.
 using BinaryBuilder, Pkg
 
-julia_version = v"1.5.3"
+julia_version = v"1.6.0"
 
 name = "libcxxwrap_julia"
-version = v"0.8.5"
+version = v"0.8.6"
 
-const is_yggdrasil = haskey(ENV, "BUILD_BUILDNUMBER")
+is_yggdrasil = haskey(ENV, "BUILD_BUILDNUMBER")
 git_repo = is_yggdrasil ? "https://github.com/JuliaInterop/libcxxwrap-julia.git" : joinpath(ENV["HOME"], "src/julia/libcxxwrap-julia/")
 unpack_target = is_yggdrasil ? "" : "libcxxwrap-julia"
 
 # Collection of sources required to complete build
 sources = [
-    GitSource(git_repo, "2bba0c81ea00d58d3321540a0526098aa9eb3c8b", unpack_target=unpack_target),
+    GitSource(git_repo, "15d30a1d5952ebacc6bb16a297a236b8be63b763", unpack_target=unpack_target),
 ]
 
 # Bash recipe for building across all platforms
@@ -34,16 +34,8 @@ install_license $WORKSPACE/srcdir/libcxxwrap-julia*/LICENSE.md
 
 # These are the platforms we will build for by default, unless further
 # platforms are passed in on the command line
-platforms = supported_platforms()
-
-# skip i686 musl builds (not supported by libjulia_jll)
-filter!(p -> !(Sys.islinux(p) && libc(p) == "musl" && arch(p) == "i686"), platforms)
-
-# skip PowerPC builds in Julia 1.3 (not supported by libjulia_jll)
-if julia_version < v"1.4"
-    filter!(p -> !(Sys.islinux(p) && arch(p) == "powerpc64le"), platforms)
-end
-
+include("../../L/libjulia/common.jl")
+platforms = libjulia_platforms(julia_version)
 platforms = expand_cxxstring_abis(platforms)
 
 # The products that we will ensure are always built
@@ -59,4 +51,4 @@ dependencies = [
 
 # Build the tarballs, and possibly a `build.jl` as well.
 build_tarballs(ARGS, name, version, sources, script, platforms, products, dependencies;
-    preferred_gcc_version = v"8", julia_compat = "^$(julia_version.major).$(julia_version.minor)")
+    preferred_gcc_version = v"9", julia_compat = "^$(julia_version.major).$(julia_version.minor)")
